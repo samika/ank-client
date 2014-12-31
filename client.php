@@ -1,7 +1,11 @@
 <?php
 
+use Symfony\Component\CssSelector\CssSelector;
+
 define('FEED_URL', '/api/v1/feedjob');
+define('POSTJOB_URL', '/api/v1/postjob');
 define('POST_URL', '/api/v1/post');
+define('POSTVERSION_URL', '/api/v1/post-version');
 
 if (!file_exists('vendor/autoload.php')) {
 	print "composer vendor directory/autoloader not found.".PHP_EOL;
@@ -23,6 +27,7 @@ print "Setup user agent " . $config['userAgent'] . PHP_EOL;
 
 while (true) {
 	feedJob($config['hub'] . FEED_URL);
+	postJob($config['hub'] . POSTJOB_URL);
 	sleep($config['interval']);
 }
 
@@ -66,6 +71,66 @@ function feedJob($url) {
 	print "Done." - PHP_EOL;
 }
 
+function PostJob($url) {
+        print "Fetching ". $url . PHP_EOL;
+
+        $data = file_get_contents($url);
+        if (!$data) {
+                return null;
+        }
+
+        $post = json_decode($data,true);
+        if (empty($post) 
+		|| !isset($post['url'])
+		|| empty($post['url'])
+		|| !isset($post['xpath'])
+		|| empty($post['xpath'])) {
+                return null;
+        }
+
+        print "Got job to do ". $post['url'] . PHP_EOL;
+
+        $fullContent = getUrl($post['url']);
+	// $post['xpath'] = '//div[@class="entry-content clearfix"]';
+	$data = parseContent($fullContent, $post['xpath']);	
+	$content = $data['content'];
+	$title = $data['title'];
+	$checksum = sha1($content);
+
+        if ($checksum == $post['checksum']) {
+                return null;
+        }
+        print "New content detected parsing RSS Feed" . PHP_EOL;
+
+	submitPostVersion([
+		'site' => $post['site'],
+		'post' => $post['post'],
+		'title' => $title,
+		'content' => $content,
+		'rawContent' => $fullContent,
+		'checksum' => $checksum,
+	]);
+
+        print "Done." - PHP_EOL;
+}
+
+function parseContent($fullContent, $xpathString) {
+	$doc = new DOMDocument();
+	@$doc->loadHTML($fullContent);
+	$xpath = new DOMXpath($doc);
+	$elements = $xpath->query($xpathString);
+	$tempDom = new DOMDocument(); 
+
+	foreach($elements as $n) {
+		$tempDom->appendChild($tempDom->importNode($n,true));
+	}
+	$content = $tempDom->saveHTML();
+	return [
+		'content' => html_entity_decode(strip_tags($content)),
+		'title' => $title,
+	];
+}
+
 function postUrl($siteInfo) {
 	global $config; // i kill myself
 	$json = json_encode($siteInfo);
@@ -80,6 +145,21 @@ function postUrl($siteInfo) {
 	$result = curl_exec($ch);
 	curl_close($ch);
 }                       
+
+function submitPostVersion($postVersion) {
+        global $config; // i kill myself
+        $json = json_encode($postVersion);
+        $ch = curl_init($config['hub'] . POSTVERSION_URL);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+        curl_setopt($ch, CURLOPT_USERAGENT, $config['userAgent']);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json',
+                'Content-Length: ' . strlen($json)]);
+        $result = curl_exec($ch);
+        curl_close($ch);
+}
 
 
 function getUrl($url) {
