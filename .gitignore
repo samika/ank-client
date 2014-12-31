@@ -1,0 +1,4 @@
+config.php
+agents.php
+composer.lock
+vendor/*
