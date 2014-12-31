@@ -1,0 +1,9 @@
+<?php
+
+$config = [
+	'hub' => 'https://hub.virallisertlinkit.eu',
+	'username' => 'anonymous',
+	'password' => 'anonymous',
+	'interval' => 60, // Seconds
+        'userAgent' => 'Mozilla/5.0 (compatible; ANK client)',
+];
