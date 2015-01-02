@@ -6,6 +6,7 @@ define('FEED_URL', '/api/v1/feedjob');
 define('POSTJOB_URL', '/api/v1/postjob');
 define('POST_URL', '/api/v1/post');
 define('POSTVERSION_URL', '/api/v1/post-version');
+define('AUTH_URL','/api/v1/auth');
 
 if (!file_exists('vendor/autoload.php')) {
 	print "composer vendor directory/autoloader not found.".PHP_EOL;
@@ -26,8 +27,23 @@ if (file_exists('agents.php')) {
 print "Setup user agent " . $config['userAgent'] . PHP_EOL;
 
 while (true) {
-	feedJob($config['hub'] . FEED_URL);
-	postJob($config['hub'] . POSTJOB_URL);
+	if (!isset($config['token'])) {
+		if (!login()) {
+			print "Authentication failed!";
+			exit(2);
+		}
+	}
+	try {
+		feedJob($config['hub'] . FEED_URL);
+		postJob($config['hub'] . POSTJOB_URL);
+	} catch (\AuthenticationException $e) {
+		print "Authentication required." . PHP_EOL;
+		if (login()) {
+			print "Authentication success" . PHP_EOL;
+		} else {
+			print "Authentication failed, please check username/password from the config.php" . PHP_EOL;
+		}
+	}
 	sleep($config['interval']);
 }
 
@@ -35,7 +51,7 @@ while (true) {
 function feedJob($url) {
 	print "Fetching ". $url . PHP_EOL;
 
-        $data = file_get_contents($url);
+        $data = getJob($url);
         if (!$data) {
 		return null;
 	}
@@ -71,10 +87,10 @@ function feedJob($url) {
 	print "Done." - PHP_EOL;
 }
 
-function PostJob($url) {
+function postJob($url) {
         print "Fetching ". $url . PHP_EOL;
 
-        $data = file_get_contents($url);
+        $data = getJob($url);
         if (!$data) {
                 return null;
         }
@@ -131,18 +147,39 @@ function parseContent($fullContent, $xpathString) {
 	];
 }
 
+function login() {
+        global $config; // i kill myself
+        $ch = curl_init($config['hub'] . AUTH_URL);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+        curl_setopt($ch, CURLOPT_POSTFIELDS, ['username' => $config['username'], 'password' => $config['password']]);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $result = curl_exec($ch);
+	$info = curl_getinfo($ch);
+        curl_close($ch);
+	if ($info['http_code'] == 200) {
+		$json = json_decode($result, true);
+		$config['token'] = $json['token'];
+		return true;
+	}
+	return false;
+}
+
 function postUrl($siteInfo) {
 	global $config; // i kill myself
 	$json = json_encode($siteInfo);
 	$ch = curl_init($config['hub'] . POST_URL);
 	curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
-	curl_setopt($ch, CURLOPT_USERAGENT, $config['userAgent']);
 	curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 	curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $config['token'],
 		'Content-Type: application/json',
 		'Content-Length: ' . strlen($json)]);
 	$result = curl_exec($ch);
+	$info = curl_getinfo($ch);
+	if ($info['http_code'] == 401) {
+		throw new AuthenticationException('Invalid credentials');
+	}	
 	curl_close($ch);
 }                       
 
@@ -155,14 +192,45 @@ function submitPostVersion($postVersion) {
         curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
+		'Authorization: Bearer ' . $config['token'],
                 'Content-Type: application/json',
                 'Content-Length: ' . strlen($json)]);
         $result = curl_exec($ch);
+        $info = curl_getinfo($ch);
+        if ($info['http_code'] == 401) {
+                throw new AuthenticationException('Invalid credentials');
+        }
         curl_close($ch);
+}
+
+function getJob($url) {
+        global $config; // i kill myself
+        $ch = curl_init($config['hub'] . POSTVERSION_URL);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $config['token']]);
+        $result = curl_exec($ch);
+        $info = curl_getinfo($ch);
+        if ($info['http_code'] == 401) {
+                throw new AuthenticationException('Invalid credentials');
+        }
+        curl_close($ch);
+	return $result;
 }
 
 
 function getUrl($url) {
-	return file_get_contents($url);
+        global $config; // i kill myself
+        $json = json_encode($postVersion);
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
+        curl_setopt($ch, CURLOPT_USERAGENT, $config['userAgent']);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $result = curl_exec($ch);
+        curl_close($ch);
+	return $result;	
 }
 
+
+class AuthenticationException extends \Exception { }
