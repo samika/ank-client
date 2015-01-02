@@ -100,8 +100,9 @@ function postJob($url) {
 		|| !isset($post['url'])
 		|| empty($post['url'])
 		|| !isset($post['xpath'])
-		|| empty($post['xpath'])) {
-                return null;
+		|| empty($post['xpath'])) {
+                print "Invalid job. ignoring". PHP_EOL;
+		return null;
         }
 
         print "Got job to do ". $post['url'] . PHP_EOL;
@@ -136,11 +137,18 @@ function parseContent($fullContent, $xpathString) {
 	$xpath = new DOMXpath($doc);
 	$elements = $xpath->query($xpathString);
 	$tempDom = new DOMDocument(); 
+	$title = null;
 
 	foreach($elements as $n) {
 		$tempDom->appendChild($tempDom->importNode($n,true));
 	}
 	$content = $tempDom->saveHTML();
+
+	$result = $xpath->query('//title');
+	if ($result || count($result) > 0) {
+		$title = $result->item(0)->textContent;
+	}
+
 	return [
 		'content' => html_entity_decode(strip_tags($content)),
 		'title' => $title,
@@ -185,8 +193,11 @@ function postUrl($siteInfo) {
 
 function submitPostVersion($postVersion) {
         global $config; // i kill myself
+
         $json = json_encode($postVersion);
-        $ch = curl_init($config['hub'] . POSTVERSION_URL);
+        print $config['hub'] . POSTVERSION_URL . " Sending: " . $postVersion['title'] . '... ';
+
+       	$ch = curl_init($config['hub'] . POSTVERSION_URL);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
         curl_setopt($ch, CURLOPT_USERAGENT, $config['userAgent']);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
@@ -200,12 +211,13 @@ function submitPostVersion($postVersion) {
         if ($info['http_code'] == 401) {
                 throw new AuthenticationException('Invalid credentials');
         }
+	print $info['http_code'] . " answer." . PHP_EOL;
         curl_close($ch);
 }
 
 function getJob($url) {
         global $config; // i kill myself
-        $ch = curl_init($config['hub'] . POSTVERSION_URL);
+        $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $config['token']]);
@@ -221,11 +233,9 @@ function getJob($url) {
 
 function getUrl($url) {
         global $config; // i kill myself
-        $json = json_encode($postVersion);
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
         curl_setopt($ch, CURLOPT_USERAGENT, $config['userAgent']);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         $result = curl_exec($ch);
         curl_close($ch);
