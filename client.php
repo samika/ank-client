@@ -16,6 +16,11 @@ if (!file_exists('vendor/autoload.php')) {
 	exit(1);
 }
 
+if (!file_exists('ca.pem')) {
+	print "Missing CA Certificate. please download it. https://hub.vaalikone.eu/ca.pem and store it to this directory." . PHP_EOL;
+	exit(1);
+}
+
 require_once('config.php');
 require_once('vendor/autoload.php');
 
@@ -29,7 +34,7 @@ print "Setup user agent " . $config['userAgent'] . PHP_EOL;
 while (true) {
 	if (!isset($config['token'])) {
 		if (!login()) {
-			print "Authentication failed!";
+			print "Authentication failed!" . PHP_EOL;
 			exit(2);
 		}
 	}
@@ -161,6 +166,8 @@ function login() {
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
         curl_setopt($ch, CURLOPT_POSTFIELDS, ['username' => $config['username'], 'password' => $config['password']]);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+	curl_setopt($ch, CURLOPT_CAINFO, 'ca.pem');
+
         $result = curl_exec($ch);
 	$info = curl_getinfo($ch);
         curl_close($ch);
@@ -177,6 +184,7 @@ function postUrl($siteInfo) {
 	$json = json_encode($siteInfo);
 	$ch = curl_init($config['hub'] . POST_URL);
 	curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+	curl_setopt($ch, CURLOPT_CAINFO, 'ca.pem');
 	curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 	curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -199,7 +207,8 @@ function submitPostVersion($postVersion) {
 
        	$ch = curl_init($config['hub'] . POSTVERSION_URL);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
-        curl_setopt($ch, CURLOPT_USERAGENT, $config['userAgent']);
+        curl_setopt($ch, CURLOPT_CAINFO, 'ca.pem');
+	curl_setopt($ch, CURLOPT_USERAGENT, $config['userAgent']);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -220,6 +229,7 @@ function getJob($url) {
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+	curl_setopt($ch, CURLOPT_CAINFO, 'ca.pem');
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $config['token']]);
         $result = curl_exec($ch);
         $info = curl_getinfo($ch);
@@ -235,6 +245,7 @@ function getUrl($url) {
         global $config; // i kill myself
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
+	curl_setopt($ch, CURLOPT_CAINFO, 'ca.pem');
         curl_setopt($ch, CURLOPT_USERAGENT, $config['userAgent']);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         $result = curl_exec($ch);
