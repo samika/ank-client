@@ -1,9 +1,9 @@
 <?php
 
 $config = [
-	'hub' => 'https://hub.virallisertlinkit.eu',
+	'hub' => 'https://hub.vaalikone.eu',
 	'username' => 'anonymous',
 	'password' => 'anonymous',
-	'interval' => 60, // Seconds
-        'userAgent' => 'Mozilla/5.0 (compatible; ANK client)',
+	'interval' => 10, // Seconds
+    'userAgent' => 'Mozilla/5.0 (compatible; ANK client)',
 ];
