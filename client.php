@@ -166,10 +166,11 @@ function login() {
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
         curl_setopt($ch, CURLOPT_POSTFIELDS, ['username' => $config['username'], 'password' => $config['password']]);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-	curl_setopt($ch, CURLOPT_CAINFO, 'ca.pem');
-
+	    curl_setopt($ch, CURLOPT_CAINFO, 'ca.pem');
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT , 5);        
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);      
         $result = curl_exec($ch);
-	$info = curl_getinfo($ch);
+    	$info = curl_getinfo($ch);
         curl_close($ch);
 	if ($info['http_code'] == 200) {
 		$json = json_decode($result, true);
@@ -208,9 +209,11 @@ function submitPostVersion($postVersion) {
        	$ch = curl_init($config['hub'] . POSTVERSION_URL);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
         curl_setopt($ch, CURLOPT_CAINFO, 'ca.pem');
-	curl_setopt($ch, CURLOPT_USERAGENT, $config['userAgent']);
+	    curl_setopt($ch, CURLOPT_USERAGENT, $config['userAgent']);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT , 5);        
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);      
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
 		'Authorization: Bearer ' . $config['token'],
                 'Content-Type: application/json',
@@ -229,7 +232,9 @@ function getJob($url) {
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-	curl_setopt($ch, CURLOPT_CAINFO, 'ca.pem');
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT , 5);        
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);      
+        curl_setopt($ch, CURLOPT_CAINFO, 'ca.pem');
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $config['token']]);
         $result = curl_exec($ch);
         $info = curl_getinfo($ch);
@@ -245,9 +250,13 @@ function getUrl($url) {
         global $config; // i kill myself
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
-	curl_setopt($ch, CURLOPT_CAINFO, 'ca.pem');
+	    curl_setopt($ch, CURLOPT_CAINFO, 'ca.pem');
         curl_setopt($ch, CURLOPT_USERAGENT, $config['userAgent']);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT , 10); 
+        curl_setopt($ch, CURLOPT_TIMEOUT, 20);  
+
         $result = curl_exec($ch);
         curl_close($ch);
 	return $result;	
