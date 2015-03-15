@@ -112,7 +112,8 @@ function postJob($url) {
 
         print "Got job to do ". $post['url'] . PHP_EOL;
 
-        $fullContent = getUrl($post['url']);
+	$info = [];
+        $fullContent = getUrl($post['url'], $info);
 	// $post['xpath'] = '//div[@class="entry-content clearfix"]';
 	$data = parseContent($fullContent, $post['xpath']);	
 	$content = $data['content'];
@@ -131,6 +132,9 @@ function postJob($url) {
 		'content' => $content,
 		'rawContent' => $fullContent,
 		'checksum' => $checksum,
+		'httpStatus' => $info['http_code'],
+		'fetchTime' => $info['total_time'],
+		'serverIp' => $info['primary_ip'],
 	]);
 
         print "Done." - PHP_EOL;
@@ -246,7 +250,7 @@ function getJob($url) {
 }
 
 
-function getUrl($url) {
+function getUrl($url, &$info) {
         global $config; // i kill myself
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
@@ -258,7 +262,11 @@ function getUrl($url) {
         curl_setopt($ch, CURLOPT_TIMEOUT, 20);  
 
         $result = curl_exec($ch);
+	if ($info) {
+		$info = curl_getinfo($ch);
+	}
         curl_close($ch);
+
 	return $result;	
 }
 
