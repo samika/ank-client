@@ -262,7 +262,7 @@ function getUrl($url, &$info=null) {
         curl_setopt($ch, CURLOPT_TIMEOUT, 20);  
 
         $result = curl_exec($ch);
-	if ($info) {
+	if (is_array($info)) {
 		$info = curl_getinfo($ch);
 	}
         curl_close($ch);
