@@ -250,7 +250,7 @@ function getJob($url) {
 }
 
 
-function getUrl($url, &$info) {
+function getUrl($url, &$info=null) {
         global $config; // i kill myself
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "GET");
